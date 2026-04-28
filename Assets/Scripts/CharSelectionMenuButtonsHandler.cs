@@ -9,6 +9,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     [SerializeField] private PlayerStats redCharacterStats;
     [SerializeField] private PlayerStats yellowCharacterStats;
 
+
     /// <summary>
     /// Vuelve al menú principal desde la pantalla de selección de personaje.
     /// </summary>
@@ -62,4 +63,11 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
 
         GameManager.Instance?.StartGame(characterStats);
     }
+
+    private void GeneracionCodigoSala()
+    {
+        //Aquí se generará el código de la sala, el host se lo pasará a sus amiguitos para poder jugar juntos
+        //El código debe aparecer en el canvas de la escena de selección de jugadores
+    }
+    
 }

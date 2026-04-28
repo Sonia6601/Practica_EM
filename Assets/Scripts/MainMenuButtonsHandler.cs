@@ -71,6 +71,11 @@ public class MainMenuButtonsHandler : NetworkBehaviour
         SceneManager.LoadScene(SceneNames.CharSelection);
     }
 
+    private void GUIcodigo()
+    {
+        //Aquí se implementará la barra para que el cliente escriba el codigo y se pueda unir a la sala
+    }
+
     /// <summary>
     /// Registra la acción del botón de opciones del menú principal.
     /// </summary>
