@@ -2,11 +2,13 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-public class MainMenuButtonsHandler : MonoBehaviour
+public class MainMenuButtonsHandler : NetworkBehaviour
 {
     [Header("Map Configs disponibles")]
     [SerializeField] private MapConfig[] availableMaps;
@@ -42,7 +44,29 @@ public class MainMenuButtonsHandler : MonoBehaviour
             return;
         }
 
+        //Aquí es donde al darle a jugar se pasa a la escena de seleccionar jugadores
+        //Entonces, el primero que le de, poner que sea el host, es decir, Que el primero acceda al networkManager y active la opción de create Host
+        //Y el resto serán clientes, acceda al networkManager y active el crear cliente
+
         SceneManager.LoadScene(SceneNames.CharSelection);
+    }
+
+    public void StartHost()
+    {
+        if (GameManager.Instance?.SelectedMapConfig == null)
+        {
+            Debug.LogWarning("[MainMenu] No hay mapa seleccionado.");
+            return;
+        }
+
+        NetworkManager.Singleton.StartHost();
+
+        SceneManager.LoadScene(SceneNames.CharSelection);
+    }
+
+    public void StartClient()
+    {
+        NetworkManager.Singleton.StartClient();
     }
 
     /// <summary>
