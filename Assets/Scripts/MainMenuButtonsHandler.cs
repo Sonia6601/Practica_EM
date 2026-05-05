@@ -61,16 +61,16 @@ public class MainMenuButtonsHandler : NetworkBehaviour
             return;
         }
 
-        NetworkManager.Singleton.StartClient();
-    
-        SceneManager.LoadScene(SceneNames.CharSelection);
+        NetworkManager.Singleton.StartHost();
+
+        NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
     public void StartClient()
     {
         NetworkManager.Singleton.StartClient();
 
-        SceneManager.LoadScene(SceneNames.CharSelection);
+        //SceneManager.LoadScene(SceneNames.CharSelection);
     }
 
     private void GUIcodigo()
