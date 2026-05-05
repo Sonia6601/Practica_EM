@@ -4,6 +4,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+using System.Net;
+using System.Net.Sockets;
+using System;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -61,24 +65,42 @@ public class MainMenuButtonsHandler : NetworkBehaviour
             return;
         }
 
+        string localIP = GetLocalIPv4(); //Se coge la IPv4 del host para que los clientes se puedan conectar al host
+        string codeRoom = GeneracionCodigoSala(); //Se genera el código de la sala
+        Debug.Log("[HOST]: Sala creada con codigo: " + codeRoom);
+
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        transport.SetConnectionData(localIP, 7777);
+
         NetworkManager.Singleton.StartHost();
 
         NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
+    private string GetLocalIPv4()
+    {
+        throw new NotImplementedException();
+    }
+
     public void StartClient()
     {
-        NetworkManager.Singleton.StartClient();
+        if (GUIcodigo())
+        {
+            NetworkManager.Singleton.StartClient();
+        } else
+        {
+            Debug.Log("Codigo de sala incorrecto");
+        }
 
         //SceneManager.LoadScene(SceneNames.CharSelection);
     }
 
-    private void GUIcodigo()
+    private bool GUIcodigo()
     {
         //Aquí se implementará la barra para que el cliente escriba el codigo y se pueda unir a la sala
         string codigo = inputCode.text;
 
-       
+        return true;
     }
 
     /// <summary>
@@ -147,5 +169,22 @@ public class MainMenuButtonsHandler : NetworkBehaviour
 
         GameManager.Instance.SelectedMapConfig = availableMaps[index];
         Debug.Log($"[MainMenu] Mapa seleccionado: {availableMaps[index].mapName}");
+    }
+
+    private string GeneracionCodigoSala()
+    {
+        //Aquí se generará el código de la sala, el host se lo pasará a sus amiguitos para poder jugar juntos
+        //El código debe aparecer en el canvas de la escena de selección de jugadores
+        string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        string code = " ";
+
+        for (int i = 0; i < 6; i++)
+        {
+            int index = UnityEngine.Random.Range(0, characters.Length);
+            code += characters[index];
+
+        }
+
+        return code;
     }
 }
