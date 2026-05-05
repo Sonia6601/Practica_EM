@@ -16,6 +16,8 @@ public class MainMenuButtonsHandler : NetworkBehaviour
     [Header("UI")]
     [SerializeField] private TMP_Dropdown mapsDropdown;
 
+    public TMP_InputField inputCode;
+
     /// <summary>
     /// Inicializa el dropdown de mapas al cargar el menú principal.
     /// </summary>
@@ -74,6 +76,9 @@ public class MainMenuButtonsHandler : NetworkBehaviour
     private void GUIcodigo()
     {
         //Aquí se implementará la barra para que el cliente escriba el codigo y se pueda unir a la sala
+        string codigo = inputCode.text;
+
+       
     }
 
     /// <summary>

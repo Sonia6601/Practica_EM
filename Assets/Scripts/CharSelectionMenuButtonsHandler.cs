@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 public class CharSelectionMenuButtonsHandler : MonoBehaviour
 {
@@ -8,7 +9,13 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     [SerializeField] private PlayerStats purpleCharacterStats;
     [SerializeField] private PlayerStats redCharacterStats;
     [SerializeField] private PlayerStats yellowCharacterStats;
+    [SerializeField] private string codeRoom { get; set; }
 
+    public TextMeshProUGUI tmp;
+    private void Start()
+    {
+        GeneracionCodigoSala();
+    }
 
     /// <summary>
     /// Vuelve al menú principal desde la pantalla de selección de personaje.
@@ -68,6 +75,20 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     {
         //Aquí se generará el código de la sala, el host se lo pasará a sus amiguitos para poder jugar juntos
         //El código debe aparecer en el canvas de la escena de selección de jugadores
+        string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        string code = " ";
+
+        for (int i = 0; i < 6; i++)
+        {
+            int index = Random.Range(0, characters.Length);
+            code += characters[index];
+
+        }
+
+        tmp.text = code;
+        codeRoom = code;
     }
+
+
     
 }
