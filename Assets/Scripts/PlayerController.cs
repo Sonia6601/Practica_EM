@@ -30,12 +30,10 @@ public class PlayerController : CharController
             GameManager.Instance.RegisterLocalPlayer(this, uniqueEntity);
     }
 
-    /// <summary>
-    /// Inicializa estado del jugador y notifica los valores iniciales al HUD.
-    /// </summary>
-    protected override void Start()
+
+    public override void OnNetworkSpawn()
     {
-        base.Start();
+        base.OnNetworkSpawn();
 
         // Dispara eventos iniciales para actualizar el HUD
         GameEvents.HealthChanged(health);
@@ -45,11 +43,23 @@ public class PlayerController : CharController
         IsAttacking = false;
     }
 
+
+    /// <summary>
+    /// Inicializa estado del jugador y notifica los valores iniciales al HUD.
+    /// </summary>
+    /*protected override void Start()
+    {
+        base.Start();
+
+    }*/
+
     /// <summary>
     /// Actualiza animación, orientación y estado de vida en cada frame.
     /// </summary>
     protected override void Update()
     {
+        if (!IsOwner) return; //si no eres el jugador no puedes mover el jugador
+
         animator.SetFloat("speed", movement.sqrMagnitude);
 
         if (movement.sqrMagnitude > 0.01f)

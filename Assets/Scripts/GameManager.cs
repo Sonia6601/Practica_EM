@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Netcode;
 
 public static class SceneNames
 {
@@ -10,7 +11,7 @@ public static class SceneNames
     public const string VictoryScene = "VictoryScene";
 }
 
-public class GameManager : MonoBehaviour
+public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
 
@@ -21,6 +22,13 @@ public class GameManager : MonoBehaviour
     public int EnemiesKilled { get; private set; }
     public PlayerStats SelectedCharacterStats { get; set; }
     public MapConfig SelectedMapConfig { get; set; }
+    public string RoomCode { get; set; }
+
+    public NetworkVariable<Unity.Collections.FixedString64Bytes> Code = new NetworkVariable<Unity.Collections.FixedString64Bytes>(
+            default,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
 
     [SerializeField] private float delayBeforeScene = 0.5f;
 
@@ -66,6 +74,14 @@ public class GameManager : MonoBehaviour
     private void OnDisable()
     {
         GameEvents.OnPlayerDied -= onPlayerDeath;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (IsServer)
+        {
+            NetworkObject.DontDestroyWithOwner = true;
+        }
     }
 
     /// <summary>

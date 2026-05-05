@@ -7,6 +7,8 @@ using Unity.Netcode.Transports.UTP;
 using System.Net;
 using System.Net.Sockets;
 using System;
+using System.Linq;
+
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -64,45 +66,96 @@ public class MainMenuButtonsHandler : NetworkBehaviour
             Debug.LogWarning("[MainMenu] No hay mapa seleccionado.");
             return;
         }
-
         string localIP = GetLocalIPv4(); //Se coge la IPv4 del host para que los clientes se puedan conectar al host
         string codeRoom = GeneracionCodigoSala(); //Se genera el código de la sala
         Debug.Log("[HOST]: Sala creada con codigo: " + codeRoom);
-
+        GameManager.Instance.RoomCode = codeRoom;
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         transport.SetConnectionData(localIP, 7777);
 
         NetworkManager.Singleton.StartHost();
+        GameManager.Instance.Code.Value = codeRoom;
 
         NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
     private string GetLocalIPv4()
     {
-        throw new NotImplementedException();
+        return Dns.GetHostEntry(Dns.GetHostName()).AddressList.First(f => f.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).ToString();
     }
+
 
     public void StartClient()
     {
-        if (GUIcodigo())
+        string codigoIntroducido = inputCode?.text.Trim().ToUpper();
+
+        if (string.IsNullOrEmpty(codigoIntroducido))
         {
-            NetworkManager.Singleton.StartClient();
-        } else
-        {
-            Debug.Log("Codigo de sala incorrecto");
+            Debug.Log("Introduce un código.");
+            return;
         }
 
-        //SceneManager.LoadScene(SceneNames.CharSelection);
+        // Guardamos el código introducido para enviarlo al host tras conectar
+        GameManager.Instance.RoomCode = codigoIntroducido;
+
+        var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        transport.SetConnectionData("127.0.0.1", 7777); //la ip está configurada para que se pruebe desde el mismo ordenador solo
+
+        NetworkManager.Singleton.StartClient();
+    }
+
+    [Rpc(SendTo.Server)]
+    public void ValidarCodigoServerRpc(string codigoCliente, ulong clientId)
+    {
+        if (codigoCliente != GameManager.Instance.RoomCode)
+        {
+            Debug.Log($"Cliente {clientId} tiene código incorrecto → kick");
+            NetworkManager.Singleton.DisconnectClient(clientId);
+        }
+        else
+        {
+            Debug.Log($"Cliente {clientId} validado ✅");
+        }
     }
 
     private bool GUIcodigo()
     {
-        //Aquí se implementará la barra para que el cliente escriba el codigo y se pueda unir a la sala
-        string codigo = inputCode.text;
+        // Check 1
+        if (inputCode == null)
+        {
+            Debug.LogError("❌ inputCode es NULL → Asígnalo en el Inspector");
+            return false;
+        }
 
-        return true;
+        // Check 2
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("❌ GameManager.Instance es NULL → Falta el GameManager en la escena");
+            return false;
+        
+        }
+
+        string codigoIntroducido = inputCode.text.Trim().ToUpper();
+
+        if (string.IsNullOrEmpty(codigoIntroducido))
+        {
+            Debug.Log("El campo de código está vacío.");
+            return false;
+        }
+
+        string codigoSala = GameManager.Instance.RoomCode.ToString();
+
+        if (codigoIntroducido == codigoSala)
+        {
+            Debug.Log("Código correcto.");
+            return true;
+        }
+        else
+        {
+            Debug.Log($"Código incorrecto. Introducido: {codigoIntroducido} | Esperado: {codigoSala}");
+            return false;
+        }
     }
-
     /// <summary>
     /// Registra la acción del botón de opciones del menú principal.
     /// </summary>
@@ -123,7 +176,6 @@ public class MainMenuButtonsHandler : NetworkBehaviour
         Application.Quit();
 #endif
     }
-
     /// <summary>
     /// Configura las opciones del dropdown y establece el mapa inicial seleccionado.
     /// </summary>
@@ -147,7 +199,6 @@ public class MainMenuButtonsHandler : NetworkBehaviour
         mapsDropdown.value = 0;
         mapsDropdown.RefreshShownValue();
         mapsDropdown.onValueChanged.AddListener(onMapDropdownChanged);
-
         applySelectedMap(0);
     }
 
@@ -176,7 +227,7 @@ public class MainMenuButtonsHandler : NetworkBehaviour
         //Aquí se generará el código de la sala, el host se lo pasará a sus amiguitos para poder jugar juntos
         //El código debe aparecer en el canvas de la escena de selección de jugadores
         string characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        string code = " ";
+        string code = ""; //no pongais un espacio que si no se inicializa con uno
 
         for (int i = 0; i < 6; i++)
         {

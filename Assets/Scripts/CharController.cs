@@ -1,7 +1,8 @@
-﻿using UnityEngine;
+﻿using Unity.Netcode;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(Animator), typeof(UniqueEntity))]
-public abstract class CharController : MonoBehaviour
+public abstract class CharController : NetworkBehaviour
 {
     [Header("Character Stats")]
     [SerializeField] protected CharacterStats stats;

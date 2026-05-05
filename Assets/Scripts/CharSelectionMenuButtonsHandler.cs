@@ -9,11 +9,15 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     [SerializeField] private PlayerStats purpleCharacterStats;
     [SerializeField] private PlayerStats redCharacterStats;
     [SerializeField] private PlayerStats yellowCharacterStats;
-    //[SerializeField] private string codeRoom { get; set; }
+    [SerializeField] private TextMeshProUGUI code;
 
-    //public TextMeshProUGUI tmp;
-    
-
+    public void Start()
+    {
+        if(GameManager.Instance != null)
+        {
+            code.text = GameManager.Instance.RoomCode;
+        }
+    }
     /// <summary>
     /// Vuelve al menú principal desde la pantalla de selección de personaje.
     /// </summary>
@@ -68,6 +72,4 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         GameManager.Instance?.StartGame(characterStats);
     }
 
-
-    
 }
