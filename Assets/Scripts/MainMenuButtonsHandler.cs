@@ -99,7 +99,8 @@ public class MainMenuButtonsHandler : NetworkBehaviour
         GameManager.Instance.RoomCode = codigoIntroducido;
 
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        transport.SetConnectionData("127.0.0.1", 7777); //la ip está configurada para que se pruebe desde el mismo ordenador solo
+        var localIP = GetLocalIPv4();
+        transport.SetConnectionData(localIP, 7777); //la ip está configurada para que se pruebe desde el mismo ordenador solo
 
         NetworkManager.Singleton.StartClient();
     }
