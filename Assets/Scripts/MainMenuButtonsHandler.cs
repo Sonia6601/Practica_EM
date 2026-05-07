@@ -87,7 +87,7 @@ public class MainMenuButtonsHandler : NetworkBehaviour
 
     public void StartClient()
     {
-        string codigoIntroducido = inputCode?.text.Trim().ToUpper();
+        string codigoIntroducido = inputCode?.text.Trim().ToUpper(); //pone con un buen formato el codigo (por si hay espacio o se pone en minuscula)
 
         if (string.IsNullOrEmpty(codigoIntroducido))
         {
@@ -109,28 +109,26 @@ public class MainMenuButtonsHandler : NetworkBehaviour
     {
         if (codigoCliente != GameManager.Instance.RoomCode)
         {
-            Debug.Log($"Cliente {clientId} tiene código incorrecto → kick");
-            NetworkManager.Singleton.DisconnectClient(clientId);
+            Debug.Log($"Cliente {clientId} tiene código incorrecto");
         }
         else
         {
-            Debug.Log($"Cliente {clientId} validado ✅");
+            Debug.Log($"Cliente {clientId} validado");
         }
     }
 
     private bool GUIcodigo()
     {
-        // Check 1
-        if (inputCode == null)
+        //Comprobaciones varias para saber por qué no funcionaba        if (inputCode == null)
         {
-            Debug.LogError("❌ inputCode es NULL → Asígnalo en el Inspector");
+            Debug.LogError("inputCode es NULL Asígnalo en el Inspector");
             return false;
         }
 
-        // Check 2
+
         if (GameManager.Instance == null)
         {
-            Debug.LogError("❌ GameManager.Instance es NULL → Falta el GameManager en la escena");
+            Debug.LogError("GameManager.Instance es NULL Falta el GameManager en la escena");
             return false;
         
         }
