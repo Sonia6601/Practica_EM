@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.Netcode;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerController : CharController
@@ -10,6 +11,8 @@ public class PlayerController : CharController
 
     public bool IsAttacking { get; private set; } = false;
     public int DamageToEnemy => damageToEnemy;
+    public NetworkVariable<Vector2> Position = new NetworkVariable<Vector2>();
+
 
     /// <summary>
     /// Inicializa controles de entrada y registra el jugador local en el gestor global.
@@ -58,6 +61,7 @@ public class PlayerController : CharController
     /// </summary>
     protected override void Update()
     {
+
         if (!IsOwner) return; //si no eres el jugador no puedes mover el jugador
 
         animator.SetFloat("speed", movement.sqrMagnitude);
@@ -66,6 +70,7 @@ public class PlayerController : CharController
         {
             float angle = Mathf.Atan2(movement.y, movement.x) * Mathf.Rad2Deg;
             transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+            transform.position = Position.Value;
         }
 
         checkDeath();
