@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 public class EnemyLemniscateController : EnemyController
@@ -44,7 +45,10 @@ public class EnemyLemniscateController : EnemyController
     /// <summary>
     /// Calcula y aplica el desplazamiento del enemigo sobre una trayectoria en lemniscata.
     /// </summary>
-    protected override void Move()
+    /// 
+    [Rpc(SendTo.Server)]
+
+    protected override void MoveServerRpc()
     {
         if (isKnockback)
         {

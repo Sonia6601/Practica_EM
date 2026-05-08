@@ -76,11 +76,36 @@ public class GameManager : NetworkBehaviour
         GameEvents.OnPlayerDied -= onPlayerDeath;
     }
 
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ClientAndHostRpc(int value, ulong sourceNetworkObjectId)
+    {
+        Debug.Log($"Client Received the RPC #{value} on NetworkObject #{sourceNetworkObjectId}");
+        if (IsOwner) //Only send an RPC to the owner of the NetworkObject
+        {
+            ServerOnlyRpc(value + 1, sourceNetworkObjectId);
+        }
+    }
+
+    [Rpc(SendTo.Server)]
+
+
+
+    private void ServerOnlyRpc(int value, ulong sourceNetworkObjectId)
+    {
+        Debug.Log($"Server received RPC #{value} on NetworkObject #{sourceNetworkObjectId}" );
+        ClientAndHostRpc(value, sourceNetworkObjectId);
+    }
+
     public override void OnNetworkSpawn()
     {
         if (IsServer)
         {
             NetworkObject.DontDestroyWithOwner = true;
+        }
+
+        if (!IsServer && IsOwner)
+        {
+            ServerOnlyRpc(0, NetworkObjectId);
         }
     }
 
@@ -256,6 +281,7 @@ public class GameManager : NetworkBehaviour
     {
         Debug.Log($"[GameManager] Jugador muerto. Keys: {GetKeys()}, Diamonds: {GetDiamonds()}, Enemies: {EnemiesKilled}");
     }
+
 }
 
 

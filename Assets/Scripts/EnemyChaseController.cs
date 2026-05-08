@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 public class EnemyChaseController : EnemyController
@@ -68,7 +69,9 @@ public class EnemyChaseController : EnemyController
     /// <summary>
     /// Decide si el enemigo persigue al jugador o se mueve de forma aleatoria.
     /// </summary>
-    protected override void Move()
+    /// 
+    [Rpc(SendTo.Server)]
+    protected override void MoveServerRpc()
     {
         if (isKnockback || playerTransform == null)
             return;
