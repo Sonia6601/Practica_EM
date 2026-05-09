@@ -72,7 +72,7 @@ public abstract class CharController : NetworkBehaviour
             return;
         }
 
-        MoveServerRpc();
+        Move();
     }
 
     /// <summary>
@@ -155,8 +155,7 @@ public abstract class CharController : NetworkBehaviour
     /// Desplaza al personaje según su vector de movimiento y velocidad.
     /// </summary>
     /// 
-    [Rpc(SendTo.Server)]
-    protected virtual void MoveServerRpc()
+    protected virtual void Move()
     {
         rb.MovePosition(rb.position + movement.normalized * moveSpeed * Time.fixedDeltaTime);
     }

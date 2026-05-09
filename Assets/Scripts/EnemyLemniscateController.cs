@@ -46,9 +46,7 @@ public class EnemyLemniscateController : EnemyController
     /// Calcula y aplica el desplazamiento del enemigo sobre una trayectoria en lemniscata.
     /// </summary>
     /// 
-    [Rpc(SendTo.Server)]
-
-    protected override void MoveServerRpc()
+    protected override void Move()
     {
         if (isKnockback)
         {
