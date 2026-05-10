@@ -1,6 +1,8 @@
-﻿using UnityEngine;
-using UnityEngine.SceneManagement;
+﻿using System.Collections;
+using System.Collections.Generic;
 using Unity.Netcode;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public static class SceneNames
 {
@@ -14,6 +16,10 @@ public static class SceneNames
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
+
+    public NetworkManager _networkManager;
+
+    [SerializeField] private GameObject _playerBall;
 
     public PlayerController LocalPlayerController { get; private set; }
     public Transform LocalPlayerTransform => LocalPlayerController != null ? LocalPlayerController.transform : null;
@@ -34,6 +40,8 @@ public class GameManager : NetworkBehaviour
 
     private PlayerGameState playerState;
 
+    public NetworkVariable<int> clientes = new NetworkVariable<int>();
+
     /// <summary>
     /// Inicializa el singleton del juego y sus datos persistentes.
     /// </summary>
@@ -50,6 +58,17 @@ public class GameManager : NetworkBehaviour
 
         playerState = new PlayerGameState("PLAYER_1");
         SceneManager.sceneUnloaded += onSceneUnloaded;
+    }
+
+    public void Start()
+    {
+
+        if (_networkManager == null)
+            _networkManager = NetworkManager.Singleton;
+
+        _networkManager.OnServerStarted += onServerStarted;
+        _networkManager.OnClientConnectedCallback += onClientConnected;
+        _networkManager.OnClientDisconnectCallback += onClientDisconnect;
     }
 
     /// <summary>
@@ -87,13 +106,138 @@ public class GameManager : NetworkBehaviour
     }
 
     [Rpc(SendTo.Server)]
-
-
-
     private void ServerOnlyRpc(int value, ulong sourceNetworkObjectId)
     {
         Debug.Log($"Server received RPC #{value} on NetworkObject #{sourceNetworkObjectId}" );
         ClientAndHostRpc(value, sourceNetworkObjectId);
+    }
+
+    private void onServerStarted()
+    {
+        print("El servidor está listo");
+        clientes.Value = 0;
+        _networkManager.SceneManager.OnLoadEventCompleted += onSceneLoadCompleted;
+
+    }
+
+    private void onSceneLoadCompleted(string sceneName, LoadSceneMode loadSceneMode,
+    List<ulong> clientsCompleted, List<ulong> clientsTimedOut)
+    {
+        if (sceneName != SceneNames.CharSelection) return;
+        if (!_networkManager.IsServer) return;
+
+        // Ahora sí, spawneamos los jugadores para cada cliente conectado
+        foreach (ulong clientId in clientsCompleted)
+        {
+            // Evitar doble spawn si ya tiene PlayerObject
+            if (_networkManager.ConnectedClients[clientId].PlayerObject != null) continue;
+
+            var playerObject = Instantiate(_playerBall);
+            NetworkObject networkObject = playerObject.GetComponent<NetworkObject>();
+            networkObject.SpawnAsPlayerObject(clientId);
+        }
+    }
+
+    // Evento cuando un cliente se ha conectado
+    private void onClientConnected(ulong clientId)
+    {
+        // Solo si eres el servidor decides instanciar a los clientes
+        if (!_networkManager.IsServer) return;
+
+        clientes.Value += 1;
+        Debug.Log("Clientes conectados: " + clientes.Value);
+
+        // Solo spawnear si ya estamos en CharSelection
+        // Si no, onSceneLoadCompleted lo hará al cargar la escena
+        if (SceneManager.GetActiveScene().name == SceneNames.CharSelection)
+        {
+            var playerObject = Instantiate(_playerBall);
+            NetworkObject networkObject = playerObject.GetComponent<NetworkObject>();
+            networkObject.SpawnAsPlayerObject(clientId);
+        }
+    }
+
+    private void onClientDisconnect(ulong clientId)
+    {
+        StartCoroutine(HandleDisconnect());
+    }
+
+    private IEnumerator HandleDisconnect()
+    {
+        // Espera un frame (puedes aumentar a 0.1f si sigue fallando)
+        yield return null;
+
+        var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+
+        /*int humanosVivos = 0;
+        int zombiesVivos = 0;
+
+        foreach (var player in allPlayers)
+        {
+            if (player.name.Contains("character-human"))
+            {
+                humanosVivos++;
+            }
+            else if (player.name.Contains("character-orc"))
+            {
+                zombiesVivos++;
+            }
+        }
+
+        //GameManager.Instance.ZombiesVivos.Value = zombiesVivos;
+        //GameManager.Instance.HumanosVivos.Value = humanosVivos;
+        Debug.Log($"Humanos vivos: {humanosVivos}, Orcos vivos: {zombiesVivos}");
+
+        if (zombiesVivos == 0)
+        {
+            Debug.Log("No quedan orcos. Los humanos ganan.");
+            endHumanWin.Value = true;
+        }
+        else if (humanosVivos == 0)
+        {
+            Debug.Log("No quedan humanos. Los orcos ganan.");
+            endZombieWin.Value = true;
+        }*/
+
+        clientes.Value = Mathf.Max(0, clientes.Value - 1);
+        Debug.Log("Clientes conectados: " + clientes.Value);
+    }
+
+
+
+    public void CheckAllReady()
+    {
+        if (!IsServer) return;
+
+        if (NetworkManager.Singleton.ConnectedClientsList.Count < 2) return;
+
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        {
+            var player = client.PlayerObject?.GetComponent<PlayerState>();
+            if (player == null || !player.isReady.Value)
+                return; // Al menos uno no está listo
+        }
+
+        // Todos están listos, cambiamos de escena
+
+        StartCoroutine(DespawnAndLoadScene());
+    }
+
+    private IEnumerator DespawnAndLoadScene()
+    {
+        var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+        foreach (var player in allPlayers)
+        {
+            if (player.TryGetComponent<NetworkObject>(out var netObj))
+            {
+                netObj.Despawn();
+            }
+        }
+
+        // Esperar 1 frame (mínimo)
+        yield return null;
+
+        NetworkManager.Singleton.SceneManager.LoadScene("PlaygroundLevel", LoadSceneMode.Single);
     }
 
     public override void OnNetworkSpawn()

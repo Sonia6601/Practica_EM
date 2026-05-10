@@ -3230,6 +3230,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1766168942}
+  - component: {fileID: 1766168943}
   - component: {fileID: 1766168941}
   m_Layer: 0
   m_Name: '@GameManager'
@@ -3251,6 +3252,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   ShowTopMostFoldoutHeaderGroup: 1
+  _networkManager: {fileID: 1796689202}
+  _playerBall: {fileID: 9122475243463114963, guid: d9969b1b675d0224fb7413e14e6bb9c6, type: 3}
   Code:
     m_InternalValue:
       utf8LengthInBytes: 0
@@ -3321,6 +3324,8 @@ MonoBehaviour:
         byte0060: 0
         byte0061: 0
   delayBeforeScene: 0.5
+  clientes:
+    m_InternalValue: 0
 --- !u!4 &1766168942
 Transform:
   m_ObjectHideFlags: 0
@@ -3336,6 +3341,31 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1766168943
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1766168940}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
+  GlobalObjectIdHash: 2282143220
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  DeferredDespawnTick: 0
+  Ownership: 1
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 0
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
+  SyncOwnerTransformWhenParented: 1
+  AllowOwnerToParent: 0
 --- !u!1 &1796689200
 GameObject:
   m_ObjectHideFlags: 0
