@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
+using Unity.Netcode;
 
 public class CharSelectionMenuButtonsHandler : MonoBehaviour
 {
@@ -10,6 +11,10 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     [SerializeField] private PlayerStats redCharacterStats;
     [SerializeField] private PlayerStats yellowCharacterStats;
     [SerializeField] private TextMeshProUGUI code;
+
+    [Header("UI")]
+    [SerializeField] private TMP_Text connectedPlayersText;
+    [SerializeField] private TMP_Text playerListText;
 
     public void Start()
     {
@@ -29,9 +34,39 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     /// <summary>
     /// Selecciona el personaje verde e inicia la partida.
     /// </summary>
+    /// 
+    public void OnRandomButtonClicked()
+    {
+        if (GameManager.Instance?.SelectedCharacterStats == null)
+        {
+            Debug.LogWarning("[CharSelection] Selecciona un personaje antes de marcar Ready.");
+            return;
+        }
+
+        var localPlayer = NetworkManager.Singleton.LocalClient?.PlayerObject?.GetComponent<PlayerState>();
+
+        if (localPlayer == null)
+        {
+            Debug.LogError("[CharSelection] PlayerObject no encontrado. ¿Tiene PlayerState el prefab?");
+            return;
+        }
+
+        if (!localPlayer.IsSpawned)
+        {
+            Debug.LogWarning("[CharSelection] El PlayerObject aún no está spawneado. Espera un momento.");
+            return;
+        }
+
+        localPlayer.SetReadyServerRpc(!localPlayer.isReady.Value);
+
+    }
+
+
     public void OnGreenButtonClicked()
     {
-        selectCharacterAndStartGame(greenCharacterStats);
+        //selectCharacterAndStartGame(greenCharacterStats);
+        GameManager.Instance.SelectedCharacterStats = greenCharacterStats;
+
     }
 
     /// <summary>
@@ -39,7 +74,8 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     /// </summary>
     public void OnPurpleButtonClicked()
     {
-        selectCharacterAndStartGame(purpleCharacterStats);
+        GameManager.Instance.SelectedCharacterStats = purpleCharacterStats;
+
     }
 
     /// <summary>
@@ -47,7 +83,8 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     /// </summary>
     public void OnRedButtonClicked()
     {
-        selectCharacterAndStartGame(redCharacterStats);
+        GameManager.Instance.SelectedCharacterStats = redCharacterStats;
+
     }
 
     /// <summary>
@@ -55,7 +92,8 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     /// </summary>
     public void OnYellowButtonClicked()
     {
-        selectCharacterAndStartGame(yellowCharacterStats);
+        GameManager.Instance.SelectedCharacterStats = yellowCharacterStats;
+
     }
 
     /// <summary>

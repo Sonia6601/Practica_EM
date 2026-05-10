@@ -70,8 +70,7 @@ public class EnemyChaseController : EnemyController
     /// Decide si el enemigo persigue al jugador o se mueve de forma aleatoria.
     /// </summary>
     /// 
-    [Rpc(SendTo.Server)]
-    protected override void MoveServerRpc()
+    protected override void Move()
     {
         if (isKnockback || playerTransform == null)
             return;
