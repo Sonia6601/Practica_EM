@@ -43,20 +43,17 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
             return;
         }
 
-        var localPlayer = NetworkManager.Singleton.LocalClient?.PlayerObject?.GetComponent<PlayerState>();
+        // Ahora usamos la instancia local directa, sin pasar por NetworkManager
+        var localPlayer = PlayerState.LocalInstance;
 
         if (localPlayer == null)
         {
-            Debug.LogError("[CharSelection] PlayerObject no encontrado. ¿Tiene PlayerState el prefab?");
+            Debug.LogError("[CharSelection] PlayerState.LocalInstance es null. " +
+                           "El prefab del jugador no tiene PlayerState, o aún no se spawneó.");
             return;
         }
 
-        if (!localPlayer.IsSpawned)
-        {
-            Debug.LogWarning("[CharSelection] El PlayerObject aún no está spawneado. Espera un momento.");
-            return;
-        }
-
+        Debug.Log($"[CharSelection] Marcando ready. Estado actual: {localPlayer.isReady.Value}");
         localPlayer.SetReadyServerRpc(!localPlayer.isReady.Value);
 
     }
