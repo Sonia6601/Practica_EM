@@ -44,6 +44,15 @@ public class PlayerController : CharController
         GameEvents.DiamondsChanged();
 
         IsAttacking = false;
+
+        // Sincronizar posición inicial
+        if (IsOwner)
+        {
+            Position.Value = (Vector2)transform.position;
+        }
+
+        // Suscribir a cambios de posición para otros jugadores
+        Position.OnValueChanged += onPositionChanged;
     }
 
 
@@ -61,7 +70,6 @@ public class PlayerController : CharController
     /// </summary>
     protected override void Update()
     {
-
         if (!IsOwner) return; //si no eres el jugador no puedes mover el jugador
 
         animator.SetFloat("speed", movement.sqrMagnitude);
@@ -70,10 +78,42 @@ public class PlayerController : CharController
         {
             float angle = Mathf.Atan2(movement.y, movement.x) * Mathf.Rad2Deg;
             transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
-            transform.position = Position.Value;
         }
 
         checkDeath();
+    }
+
+    /// <summary>
+    /// Override de FixedUpdate para sincronizar posición del owner al servidor.
+    /// </summary>
+    protected override void FixedUpdate()
+    {
+        // El owner calcula su propio movimiento
+        if (IsOwner && !isKnockback && !isDead)
+        {
+            base.FixedUpdate();
+            // Enviar posición actualizada al servidor
+            UpdatePositionServerRpc((Vector2)transform.position);
+        }
+        else if (!IsOwner)
+        {
+            // Los otros clientes usan la posición sincronizada de la red
+            // (se actualiza mediante onPositionChanged)
+            if (isKnockback)
+            {
+                knockbackTimer -= Time.fixedDeltaTime;
+                if (knockbackTimer <= 0f)
+                {
+                    isKnockback = false;
+                    rb.linearVelocity = Vector2.zero;
+                }
+            }
+        }
+        else if (isDead || isKnockback)
+        {
+            // Si el owner está en knockback o muerto, aplicar física normal
+            base.FixedUpdate();
+        }
     }
 
     /// <summary>
@@ -177,6 +217,28 @@ public class PlayerController : CharController
             damageToEnemy = 50;
             attackCooldown = 0.5f;
             moveSpeed *= 1.25f; // Bonus por defecto
+        }
+    }
+
+    /// <summary>
+    /// RPC que envía la posición del owner al servidor para sincronizar con otros clientes.
+    /// </summary>
+    [Rpc(SendTo.Server)]
+    private void UpdatePositionServerRpc(Vector2 newPosition)
+    {
+        // Solo el servidor actualiza la NetworkVariable
+        Position.Value = newPosition;
+    }
+
+    /// <summary>
+    /// Callback que se ejecuta cuando la posición sincronizada cambia en otros clientes.
+    /// </summary>
+    private void onPositionChanged(Vector2 oldPosition, Vector2 newPosition)
+    {
+        // Los clientes que NO son owner aplican la posición sincronizada
+        if (!IsOwner && !isKnockback && !isDead)
+        {
+            transform.position = newPosition;
         }
     }
 

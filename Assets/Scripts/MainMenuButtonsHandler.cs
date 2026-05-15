@@ -23,6 +23,7 @@ public class MainMenuButtonsHandler : NetworkBehaviour
     [SerializeField] private TMP_Dropdown mapsDropdown;
 
     public TMP_InputField inputCode;
+    public TMP_InputField inputHostIP;
 
     /// <summary>
     /// Inicializa el dropdown de mapas al cargar el menú principal.
@@ -63,25 +64,34 @@ public class MainMenuButtonsHandler : NetworkBehaviour
     {
         if (GameManager.Instance?.SelectedMapConfig == null)
         {
-            Debug.LogWarning("[MainMenu] No hay mapa seleccionado.");
-            return;
+            if (availableMaps != null && availableMaps.Length > 0)
+            {
+                GameManager.Instance.SelectedMapConfig = availableMaps[0];
+                Debug.LogWarning("[MainMenu] No había mapa seleccionado. Se usa el primer mapa disponible.");
+            }
+            else
+            {
+                Debug.LogWarning("[MainMenu] No hay mapa seleccionado.");
+                return;
+            }
         }
-        string localIP = GetLocalIPv4(); //Se coge la IPv4 del host para que los clientes se puedan conectar al host
+
         string codeRoom = GeneracionCodigoSala(); //Se genera el código de la sala
         Debug.Log("[HOST]: Sala creada con codigo: " + codeRoom);
         GameManager.Instance.RoomCode = codeRoom;
 
-        // 1. Obtenemos el componente 'UnityTransport' del NetworkManager.
-        // El 'UnityTransport' es el motor/protocolo de bajo nivel que usa Unity Netcode para enviar y recibir datos en red local o a través de internet (gestiona los sockets UDP)
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
 
-        // 2. Le indicamos a UnityTransport en qué Dirección IP y Puerto (7777 es el estándar) debe "abrir sus puertas".
-        // Como Host, esto significa: "Escucha a cualquier jugador que intente conectarse a mi IP local en el puerto 7777".
-        transport.SetConnectionData(localIP, 7777);
+        // El host debe escuchar en todas las interfaces para ser más robusto en el mismo PC.
+        transport.SetConnectionData("0.0.0.0", 7777);
 
-        NetworkManager.Singleton.StartHost();
+        if (!NetworkManager.Singleton.StartHost())
+        {
+            Debug.LogError("[HOST] No se pudo iniciar el host.");
+            return;
+        }
+
         GameManager.Instance.Code.Value = codeRoom;
-
         NetworkManager.Singleton.SceneManager.LoadScene(SceneNames.CharSelection, LoadSceneMode.Single);
     }
 
@@ -106,18 +116,21 @@ public class MainMenuButtonsHandler : NetworkBehaviour
             return;
         }
 
-        // Guardamos el código introducido para enviarlo al host tras conectar
+        // Guardamos el código introducido localmente para mostrarlo si hace falta.
         GameManager.Instance.RoomCode = codigoIntroducido;
 
         // Recuperamos el componente de transporte para decirle al cliente a dónde debe conectarse.
         var transport = NetworkManager.Singleton.GetComponent<UnityTransport>();
 
-        // OJO: Al usar 'GetLocalIPv4()' aquí, el cliente está calculando y usando su *propia* IP.
-        // Esto es útil SÓLO si probáis el juego abriendo dos ventanas en el mismo ordenador. 
-        // Si vais a jugar desde ordenadores distintos, no funcionará así, habría que usar la lógica de IP a Código.
-        var localIP = GetLocalIPv4();
+        // Si quieres probar en el mismo ordenador, usa localhost.
+        // Si quieres probar desde otro ordenador, escribe la IP del host en el campo Host IP.
+        string hostIp = "127.0.0.1";
+        if (inputHostIP != null && !string.IsNullOrWhiteSpace(inputHostIP.text))
+        {
+            hostIp = inputHostIP.text.Trim();
+        }
 
-        transport.SetConnectionData(localIP, 7777); //la ip está configurada para que se pruebe desde el mismo ordenador solo
+        transport.SetConnectionData(hostIp, 7777);
 
         // Inicia los sistemas internos, conecta por UDP al servidor y sincroniza la partida actual.
         NetworkManager.Singleton.StartClient();

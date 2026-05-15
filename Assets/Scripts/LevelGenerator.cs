@@ -83,6 +83,17 @@ public class LevelGenerator : MonoBehaviour
             Debug.Log("[LevelGenerator] Usando MapConfig por defecto.");
         }
 
+        // Usar el seed sincronizado para asegurar que todos los jugadores generan el mismo mapa
+        if (GameManager.Instance != null && GameManager.Instance.MapSeed.Value != 0)
+        {
+            Random.InitState(GameManager.Instance.MapSeed.Value);
+            Debug.Log($"[LevelGenerator] Generando mapa con seed sincronizado: {GameManager.Instance.MapSeed.Value}");
+        }
+        else
+        {
+            Debug.LogWarning("[LevelGenerator] Seed no sincronizado, usando Random predeterminado");
+        }
+
         generateLevel();
         preparePlayerSpawn();
     }

@@ -41,6 +41,12 @@ public class GameManager : NetworkBehaviour
     private PlayerGameState playerState;
 
     public NetworkVariable<int> clientes = new NetworkVariable<int>();
+    
+    public NetworkVariable<int> MapSeed = new NetworkVariable<int>(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     /// <summary>
     /// Inicializa el singleton del juego y sus datos persistentes.
@@ -65,6 +71,9 @@ public class GameManager : NetworkBehaviour
 
         if (_networkManager == null)
             _networkManager = NetworkManager.Singleton;
+
+        // Desactivar auto-spawn para evitar conflictos con spawn manual
+        _networkManager.NetworkConfig.AutoSpawnPlayerPrefabClientSide = false;
 
         _networkManager.OnServerStarted += onServerStarted;
         _networkManager.OnClientConnectedCallback += onClientConnected;
@@ -126,15 +135,46 @@ public class GameManager : NetworkBehaviour
         if (sceneName != SceneNames.CharSelection) return;
         if (!_networkManager.IsServer) return;
 
-        // Ahora sí, spawneamos los jugadores para cada cliente conectado
+        Debug.Log($"[GameManager] Escena {sceneName} cargada en servidor. Clients completados: {clientsCompleted.Count}");
+
+        // Spawnear jugadores para cada cliente que completó la carga
         foreach (ulong clientId in clientsCompleted)
         {
-            // Evitar doble spawn si ya tiene PlayerObject
-            if (_networkManager.ConnectedClients[clientId].PlayerObject != null) continue;
+            Debug.Log($"[GameManager] Procesando spawn para cliente {clientId}");
 
+            var existingPlayerObject = _networkManager.ConnectedClients[clientId].PlayerObject;
+            
+            // Si ya tiene PlayerObject pero NO está spawneado, destruirlo e intentar de nuevo
+            if (existingPlayerObject != null)
+            {
+                var networkObj = existingPlayerObject.GetComponent<NetworkObject>();
+                if (networkObj != null && networkObj.IsSpawned)
+                {
+                    Debug.Log($"[GameManager] Cliente {clientId} ya tiene PlayerObject spawneado. Saltando.");
+                    continue;
+                }
+                else
+                {
+                    Debug.Log($"[GameManager] Cliente {clientId} tiene PlayerObject pero NO está spawneado. Destruyendo...");
+                    Destroy(existingPlayerObject);
+                }
+            }
+
+            Debug.Log($"[GameManager] Instantiando PlayerObject para cliente {clientId}");
             var playerObject = Instantiate(_playerBall);
+            Debug.Log($"[GameManager] PlayerObject instantiado: {playerObject.name}");
+
             NetworkObject networkObject = playerObject.GetComponent<NetworkObject>();
+            if (networkObject == null)
+            {
+                Debug.LogError($"[GameManager] PlayerObject sin NetworkObject en prefab. Destroy.");
+                Destroy(playerObject);
+                continue;
+            }
+
+            Debug.Log($"[GameManager] Llamando SpawnAsPlayerObject({clientId})");
             networkObject.SpawnAsPlayerObject(clientId);
+            Debug.Log($"[GameManager] SpawnAsPlayerObject completado. IsSpawned ahora: {networkObject.IsSpawned}");
         }
     }
 
@@ -145,62 +185,86 @@ public class GameManager : NetworkBehaviour
         if (!_networkManager.IsServer) return;
 
         clientes.Value += 1;
-        Debug.Log("Clientes conectados: " + clientes.Value);
+        Debug.Log($"[GameManager] Cliente {clientId} conectado. Total: {clientes.Value}");
 
         // Solo spawnear si ya estamos en CharSelection
         // Si no, onSceneLoadCompleted lo hará al cargar la escena
         if (SceneManager.GetActiveScene().name == SceneNames.CharSelection)
         {
+            Debug.Log($"[GameManager] CharSelection ya activa. Intentando spawn para cliente {clientId}");
+            
+            var existingPlayerObject = _networkManager.ConnectedClients[clientId].PlayerObject;
+            
+            if (existingPlayerObject != null)
+            {
+                var networkObj = existingPlayerObject.GetComponent<NetworkObject>();
+                if (networkObj != null && networkObj.IsSpawned)
+                {
+                    Debug.Log($"[GameManager] Cliente {clientId} ya está spawneado. Skip.");
+                    return;
+                }
+                Destroy(existingPlayerObject);
+            }
+            
             var playerObject = Instantiate(_playerBall);
             NetworkObject networkObject = playerObject.GetComponent<NetworkObject>();
+            if (networkObject == null)
+            {
+                Debug.LogError($"[GameManager] PlayerObject sin NetworkObject. Destroy.");
+                Destroy(playerObject);
+                return;
+            }
+            Debug.Log($"[GameManager] Spawneando para cliente {clientId}");
             networkObject.SpawnAsPlayerObject(clientId);
+            Debug.Log($"[GameManager] Spawn completado. IsSpawned: {networkObject.IsSpawned}");
+        }
+        else
+        {
+            Debug.Log($"[GameManager] Cliente {clientId} conectado. Esperando carga de CharSelection para spawn.");
         }
     }
 
     private void onClientDisconnect(ulong clientId)
     {
-        StartCoroutine(HandleDisconnect());
+        StartCoroutine(HandleDisconnect(clientId));
     }
 
-    private IEnumerator HandleDisconnect()
+    private IEnumerator HandleDisconnect(ulong disconnectedClientId)
     {
-        // Espera un frame (puedes aumentar a 0.1f si sigue fallando)
+        // Esperar un frame para asegurar que el cliente se ha desconectado completamente
         yield return null;
 
-        var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+        Debug.Log($"[GameManager] Cliente {disconnectedClientId} se ha desconectado");
 
-        /*int humanosVivos = 0;
-        int zombiesVivos = 0;
-
-        foreach (var player in allPlayers)
-        {
-            if (player.name.Contains("character-human"))
-            {
-                humanosVivos++;
-            }
-            else if (player.name.Contains("character-orc"))
-            {
-                zombiesVivos++;
-            }
-        }
-
-        //GameManager.Instance.ZombiesVivos.Value = zombiesVivos;
-        //GameManager.Instance.HumanosVivos.Value = humanosVivos;
-        Debug.Log($"Humanos vivos: {humanosVivos}, Orcos vivos: {zombiesVivos}");
-
-        if (zombiesVivos == 0)
-        {
-            Debug.Log("No quedan orcos. Los humanos ganan.");
-            endHumanWin.Value = true;
-        }
-        else if (humanosVivos == 0)
-        {
-            Debug.Log("No quedan humanos. Los orcos ganan.");
-            endZombieWin.Value = true;
-        }*/
-
+        // Decrementar contador de clientes
         clientes.Value = Mathf.Max(0, clientes.Value - 1);
-        Debug.Log("Clientes conectados: " + clientes.Value);
+        Debug.Log($"[GameManager] Clientes conectados: {clientes.Value}");
+
+        // Si estamos en el lobby (CharSelection), solo decrementar contador
+        // Si estamos en juego (PlaygroundLevel), despawnear el jugador
+        if (SceneManager.GetActiveScene().name == SceneNames.PlaygroundLevel)
+        {
+            var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+
+            foreach (var player in allPlayers)
+            {
+                if (player.TryGetComponent<NetworkObject>(out var netObj))
+                {
+                    // Verificar si este jugador pertenecía al cliente desconectado
+                    if (netObj.OwnerClientId == disconnectedClientId)
+                    {
+                        netObj.Despawn(destroy: true);
+                        Debug.Log($"[GameManager] Jugador del cliente {disconnectedClientId} despawneado");
+                    }
+                }
+            }
+
+            // Notificar a los demás jugadores
+            if (IsServer)
+            {
+                Debug.Log($"[GameManager] Un jugador se ha desconectado. Jugadores restantes: {clientes.Value}");
+            }
+        }
     }
 
 
@@ -209,17 +273,32 @@ public class GameManager : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        if (NetworkManager.Singleton.ConnectedClientsList.Count < 2) return;
+        Debug.Log($"[GameManager] CheckAllReady() llamado. Clientes conectados: {NetworkManager.Singleton.ConnectedClientsList.Count}");
+
+        if (NetworkManager.Singleton.ConnectedClientsList.Count < 2)
+        {
+            Debug.Log("[GameManager] No hay suficientes clientes conectados (mínimo 2)");
+            return;
+        }
 
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             var player = client.PlayerObject?.GetComponent<PlayerState>();
-            if (player == null || !player.isReady.Value)
-                return; // Al menos uno no está listo
+            if (player == null)
+            {
+                Debug.Log($"[GameManager] Cliente {client.ClientId} no tiene PlayerState");
+                return;
+            }
+
+            if (!player.isReady.Value)
+            {
+                Debug.Log($"[GameManager] Cliente {client.ClientId} no está listo");
+                return;
+            }
         }
 
-        // Todos están listos, cambiamos de escena
-
+        // Todos están listos
+        Debug.Log("[GameManager] ¡TODOS LOS JUGADORES ESTÁN LISTOS! Cargando PlaygroundLevel...");
         StartCoroutine(DespawnAndLoadScene());
     }
 
@@ -236,6 +315,14 @@ public class GameManager : NetworkBehaviour
 
         // Esperar 1 frame (mínimo)
         yield return null;
+
+        // Generar seed sincronizado para el mapa en el servidor
+        if (IsServer)
+        {
+            int newSeed = Random.Range(0, int.MaxValue);
+            MapSeed.Value = newSeed;
+            Debug.Log($"[GameManager] Seed de mapa generado en servidor: {newSeed}");
+        }
 
         NetworkManager.Singleton.SceneManager.LoadScene("PlaygroundLevel", LoadSceneMode.Single);
     }
