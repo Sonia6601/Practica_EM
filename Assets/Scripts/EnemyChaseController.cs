@@ -21,22 +21,13 @@ public class EnemyChaseController : EnemyController
     {
         base.Start();
 
-        if (GameManager.Instance != null)
+        if (IsServer)
         {
-            playerTransform = GameManager.Instance.LocalPlayerTransform;
-            GameEvents.OnLocalPlayerRegistered += onPlayerRegistered;
+            setNewWanderDirection();
         }
-
-        setNewWanderDirection();
     }
 
-    /// <summary>
-    /// Libera la suscripción al evento de registro del jugador al destruir el enemigo.
-    /// </summary>
-    private void OnDestroy()
-    {
-        GameEvents.OnLocalPlayerRegistered -= onPlayerRegistered;
-    }
+    
 
     /// <summary>
     /// Carga y aplica las estadísticas de persecución y vagabundeo del enemigo.
@@ -70,12 +61,23 @@ public class EnemyChaseController : EnemyController
     /// Decide si el enemigo persigue al jugador o se mueve de forma aleatoria.
     /// </summary>
     /// 
-    [Rpc(SendTo.Server)]
-    protected override void MoveServerRpc()
+    protected override void MoveServer()
     {
-        if (isKnockback || playerTransform == null)
-            return;
+        // Solo el servidor debe calcular el movimiento
 
+        if (!IsServer|| isKnockback)
+            return;
+        // Actualizamos cuál es el jugador más cercano antes de movernos
+
+        FindClosestPlayer();
+
+        // Si no hay jugadores, nos movemos aleatoriamente
+
+        if (playerTransform==null)
+        {
+            wanderMovement();
+            return;
+        }
         float distanceToPlayer = Vector2.Distance(transform.position, playerTransform.position);
 
         if (distanceToPlayer > chaseRange)
@@ -84,13 +86,6 @@ public class EnemyChaseController : EnemyController
             chasePlayer();
     }
 
-    /// <summary>
-    /// Actualiza la referencia del jugador cuando se registra el jugador local.
-    /// </summary>
-    private void onPlayerRegistered(PlayerController player)
-    {
-        playerTransform = player != null ? player.transform : null;
-    }
 
     /// <summary>
     /// Mueve al enemigo hacia el jugador y orienta su rotación en la dirección de avance.
@@ -146,5 +141,33 @@ public class EnemyChaseController : EnemyController
         }
 
         wanderTimer = wanderChangeInterval;
+    }
+
+    /// <summary>
+    /// Busca entre todos los jugadores conectados cuál es el más cercano al enemigo.
+    /// Solo se ejecuta en el servidor.
+    /// </summary>
+    private void FindClosestPlayer()
+    {
+        // Buscamos todos los jugadores en la escena
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        
+        float closestDistance = float.MaxValue;
+        Transform closestPlayer = null;
+
+        foreach (var player in allPlayers)
+        {
+            // Ignorar al jugador si está muerto 
+            // if (player.IsDead) continue; 
+
+            float distance = Vector2.Distance(transform.position, player.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestPlayer = player.transform;
+            }
+        }
+
+        playerTransform = closestPlayer; // Reutilizamos tu variable playerTransform original
     }
 }

@@ -72,7 +72,15 @@ public abstract class CharController : NetworkBehaviour
             return;
         }
 
-        MoveServerRpc();
+        MoveServer(); // Cambiado de MoveServerRpc a MoveServer
+    }
+
+    /// <summary>
+    /// Método para ser sobrescrito por las clases hijas que controlarán el movimiento.
+    /// Renombrado a MoveServer ya que no es un RPC (se ejecuta localmente o en el servidor autónomo).
+    /// </summary>
+    protected virtual void MoveServer()
+    {
     }
 
     /// <summary>
