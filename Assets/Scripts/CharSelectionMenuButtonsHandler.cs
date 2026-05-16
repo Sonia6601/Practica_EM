@@ -22,16 +22,17 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
     private string pendingCharacterName;
     private bool pendingReadyRequest;
     private bool pendingReadyValue;
+    private int framesWaited;
 
     public void Start()
     {
-        if(GameManager.Instance != null)
+        if (GameManager.Instance != null)
         {
             code.text = GameManager.Instance.RoomCode;
         }
-        
+
         localPlayerState = null; // Reset al iniciar
-        
+
         // Buscar y configurar el botón START con el controlador
         Button startButton = FindStartButton();
         if (startButton != null && startButton.GetComponent<StartButtonController>() == null)
@@ -39,14 +40,14 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
             startButton.gameObject.AddComponent<StartButtonController>();
             Debug.Log("[CharSelection] StartButtonController agregado dinámicamente al botón");
         }
-        
+
         UpdatePlayerList();
     }
 
     private Button FindStartButton()
     {
         // Buscar el botón llamado "ButtonStart" en la escena
-        Transform canvas = FindObjectOfType<Canvas>()?.transform;
+        Transform canvas = FindFirstObjectByType<Canvas>()?.transform;
         if (canvas != null)
         {
             Transform startButtonTransform = canvas.Find("ButtonStart");
@@ -56,9 +57,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
                 return button;
             }
         }
-        
+
         // Alternativa: buscar por nombre en toda la jerarquía
-        Button[] buttons = FindObjectsOfType<Button>();
+        Button[] buttons = FindObjectsByType<Button>(FindObjectsSortMode.None);
         foreach (Button btn in buttons)
         {
             if (btn.gameObject.name == "ButtonStart")
@@ -66,7 +67,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
                 return btn;
             }
         }
-        
+
         Debug.LogWarning("[CharSelection] No se encontró el botón START");
         return null;
     }
@@ -89,9 +90,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         if (NetworkManager.Singleton.IsServer)
         {
             // **FLUJO DEL HOST: Iniciar la partida**
-            
+
             int connectedCount = NetworkManager.Singleton.ConnectedClientsList.Count;
-            
+
             // Verificar que al menos 2 jugadores estén conectados
             if (connectedCount < 2)
             {
@@ -117,7 +118,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
                     break;
                 }
             }
-            
+
             if (!allReady)
             {
                 return;
@@ -208,7 +209,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         GameManager.Instance.SelectedCharacterStats = characterStats;
 
         EnsureLocalPlayerState();
-        
+
         Debug.Log($"[CharSelection] Guardando selección para reintento: {characterStats.characterName}");
         pendingCharacterName = characterStats.characterName;
         framesWaited = 0; // Reset del contador de espera
@@ -252,21 +253,18 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
             return; // Aún no está disponible
         }
 
-        // Esperar a que IsSpawned sea verdadero (máximo 60 frames)
+        // FIX: Always wait for IsSpawned — never bypass this check.
+        // Calling a ServerRpc before the NetworkObject is spawned throws:
+        // "The NetworkBehaviour must be spawned before calling this method."
         if (!localPlayerState.IsSpawned)
         {
             framesWaited++;
-            if (framesWaited < 60)
-            {
-                return; // Seguir esperando
-            }
-            // Si pasaron 60 frames, intentar de todas formas
-            Debug.LogWarning("[CharSelection] Timeout esperando IsSpawned. Intentando enviar de todas formas...");
-            framesWaited = 0;
+            return;
         }
-        else if (framesWaited > 0)
+
+        if (framesWaited > 0)
         {
-            Debug.Log($"[CharSelection] ✓ IsSpawned = true después de {framesWaited} frames");
+            Debug.Log($"[CharSelection] ✓ IsSpawned = true after {framesWaited} frames");
             framesWaited = 0;
         }
 
@@ -313,7 +311,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
 
         StringBuilder playerListBuilder = new StringBuilder();
         bool allReady = totalConnected >= 2; // Asumir que no todos están listos al inicio
-        
+
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
             var playerState = client.PlayerObject?.GetComponent<PlayerState>();
@@ -321,7 +319,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
             {
                 string charName = playerState.SelectedCharacterName.Value.ToString();
                 bool isReady = playerState.isReady.Value;
-                
+
                 if (string.IsNullOrEmpty(charName) || charName == "")
                 {
                     charName = "(sin personaje)";
@@ -329,11 +327,11 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
 
                 // Mostrar si es HOST o CLIENT
                 string role = (client.ClientId == 0) ? "👑 HOST" : "🎮 CLIENT";
-                
+
                 // Si es el jugador local, marcar
                 bool isLocalPlayer = NetworkManager.Singleton.LocalClient.ClientId == client.ClientId;
                 string localMarker = isLocalPlayer ? " ← TÚ" : "";
-                
+
                 string readyStatus = isReady ? "✓ LISTO" : "⏳ Esperando";
                 playerListBuilder.AppendLine($"{role} • {charName} [{readyStatus}]{localMarker}");
 
@@ -389,7 +387,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
 
         // Actualizar la lista cada frame para reflejar cambios en tiempo real
         UpdatePlayerList();
-        
+
         // Actualizar estado del botón START
         UpdateStartButtonState();
     }
@@ -402,13 +400,13 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
             return;
 
         bool isHost = NetworkManager.Singleton.IsServer;
-        
+
         if (isHost)
         {
             // HOST: Solo habilitar si todos están listos
             int connectedCount = NetworkManager.Singleton.ConnectedClientsList.Count;
             bool allReady = connectedCount >= 2;
-            
+
             foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
             {
                 var playerState = client.PlayerObject?.GetComponent<PlayerState>();
@@ -418,9 +416,9 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
                     break;
                 }
             }
-            
+
             startButton.interactable = allReady && connectedCount >= 2;
-            
+
             // Actualizar texto si existe
             Text buttonText = startButton.GetComponentInChildren<Text>();
             if (buttonText != null)
@@ -432,7 +430,7 @@ public class CharSelectionMenuButtonsHandler : MonoBehaviour
         {
             // CLIENT: Siempre habilitado para marcar listo
             startButton.interactable = true;
-            
+
             Text buttonText = startButton.GetComponentInChildren<Text>();
             if (buttonText != null)
             {

@@ -269,9 +269,9 @@ public class GameManager : NetworkBehaviour
 
 
 
-    public void CheckAllReady()
+    public void CheckAllReady() //comprueba si los clientes están (función del boton start del lobby)
     {
-        if (!IsServer) return;
+        if (!IsServer) return; //si no eres el host, no puedes continuar (no puedes pasar a la siguiente pantalla)
 
         Debug.Log($"[GameManager] CheckAllReady() llamado. Clientes conectados: {NetworkManager.Singleton.ConnectedClientsList.Count}");
 
@@ -283,7 +283,7 @@ public class GameManager : NetworkBehaviour
 
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
-            var player = client.PlayerObject?.GetComponent<PlayerState>();
+            var player = client.PlayerObject?.GetComponent<PlayerState>(); //intenta conseguir los stats de los jugadores
             if (player == null)
             {
                 Debug.Log($"[GameManager] Cliente {client.ClientId} no tiene PlayerState");
@@ -299,17 +299,17 @@ public class GameManager : NetworkBehaviour
 
         // Todos están listos
         Debug.Log("[GameManager] ¡TODOS LOS JUGADORES ESTÁN LISTOS! Cargando PlaygroundLevel...");
-        StartCoroutine(DespawnAndLoadScene());
+        StartCoroutine(DespawnAndLoadScene()); //empieza la corrutina de gestión de escena
     }
 
-    private IEnumerator DespawnAndLoadScene()
+    private IEnumerator DespawnAndLoadScene() //Funcion de carga y descarga de escenas en linea
     {
-        var allPlayers = GameObject.FindGameObjectsWithTag("Player");
+        var allPlayers = GameObject.FindGameObjectsWithTag("Player"); //Busca los Gameobjects con el tag "Player" en Unity
         foreach (var player in allPlayers)
         {
-            if (player.TryGetComponent<NetworkObject>(out var netObj))
+            if (player.TryGetComponent<NetworkObject>(out var netObj)) //intenta conseguir los Gameobjets de los objectos (en solo lectura)
             {
-                netObj.Despawn();
+                netObj.Despawn(); 
             }
         }
 
@@ -327,14 +327,14 @@ public class GameManager : NetworkBehaviour
         NetworkManager.Singleton.SceneManager.LoadScene("PlaygroundLevel", LoadSceneMode.Single);
     }
 
-    public override void OnNetworkSpawn()
+    public override void OnNetworkSpawn() // Cuando se crea la red
     {
         if (IsServer)
         {
             NetworkObject.DontDestroyWithOwner = true;
         }
 
-        if (!IsServer && IsOwner)
+        if (!IsServer && IsOwner) //si eres el servidor y el que está ejecutando este código
         {
             ServerOnlyRpc(0, NetworkObjectId);
         }
